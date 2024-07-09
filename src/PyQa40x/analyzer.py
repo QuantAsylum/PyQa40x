@@ -2,7 +2,7 @@ import numpy as np
 import usb1
 import struct
 import atexit
-import usb1
+import usb1  # pip install libusb1
 import atexit
 import struct
 import numpy as np
@@ -10,7 +10,7 @@ from .registers import Registers
 from .control import Control
 from .stream import Stream
 from .wave_sine import Wave
-import scipy.signal
+import scipy.signal # pip install scipy
 
 class AnalyzerParams:
     def __init__(self, sample_rate: int = 192000, max_input_level: int = 0, max_output_level: int = 18, 
