@@ -53,3 +53,59 @@ def dBu_to_linear(dBu: np.float64) -> np.float64:
     ref_voltage = 0.775
     linear_value = 10**((dBu / 20.0) + np.log10(ref_voltage))
     return linear_value
+
+# Functions to handle float arrays
+
+def linear_array_to_dBV(values: np.ndarray) -> np.ndarray:
+    """
+    Convert an array of linear values to dBV.
+
+    Parameters:
+    - values: The array of linear values to convert (numpy ndarray).
+
+    Returns:
+    - The corresponding array of values in dBV (numpy ndarray).
+    """
+    dBV = 20 * np.log10(values)
+    return dBV
+
+def linear_array_to_dBu(values: np.ndarray) -> np.ndarray:
+    """
+    Convert an array of linear values to dBu (decibels relative to 0.775 volts).
+
+    Parameters:
+    - values: The array of linear values to convert (numpy ndarray).
+
+    Returns:
+    - The corresponding array of values in dBu (numpy ndarray).
+    """
+    ref_voltage = 0.775
+    dBu = 20 * np.log10(values / ref_voltage)
+    return dBu
+
+def dBV_array_to_linear(dBV_values: np.ndarray) -> np.ndarray:
+    """
+    Convert an array of dBV values back to linear.
+
+    Parameters:
+    - dBV_values: The array of dBV values to convert (numpy ndarray).
+
+    Returns:
+    - The corresponding array of linear values (numpy ndarray).
+    """
+    linear_values = 10**(dBV_values / 20.0)
+    return linear_values
+
+def dBu_array_to_linear(dBu_values: np.ndarray) -> np.ndarray:
+    """
+    Convert an array of dBu values back to linear.
+
+    Parameters:
+    - dBu_values: The array of dBu values to convert (numpy ndarray).
+
+    Returns:
+    - The corresponding array of linear values (numpy ndarray).
+    """
+    ref_voltage = 0.775
+    linear_values = 10**((dBu_values / 20.0) + np.log10(ref_voltage))
+    return linear_values

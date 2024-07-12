@@ -69,6 +69,23 @@ class FFTProcessor:
             self.fft_data_right = 20 * np.log10(self.fft_data_right)
         return self
 
+    def to_dbu(self) -> 'FFTProcessor':
+        """
+        Convert FFT data to dBu (decibels relative to 0.775 volts).
+
+        Returns:
+            FFTProcessor: The instance itself to allow method chaining.
+        """
+        # First, convert to dBV
+        self.to_dbv()
+
+        dbv_to_dbu_conversion = 2.21  # dBV to dBu conversion factor
+        if self.fft_data_left is not None:
+            self.fft_data_left += dbv_to_dbu_conversion
+        if self.fft_data_right is not None:
+            self.fft_data_right += dbv_to_dbu_conversion
+        return self
+
     def get_result(self) -> tuple[np.ndarray, np.ndarray]:
         """
         Get the current FFT data for both channels at any stage of processing.

@@ -1,15 +1,17 @@
 import numpy as np
-import usb1
-import struct
-import atexit
 import usb1  # pip install libusb1
-import atexit
 import struct
-import numpy as np
+import atexit
+
+#from PyQa40x.helpers import linear_array_to_dBV, linear_array_to_dBu  # pip install libusb1
+
 from .registers import Registers
 from .control import Control
 from .stream import Stream
 from .wave_sine import Wave
+from .fft_processor import FFTProcessor
+from .sig_proc import SigProc
+from .helpers import *
 import scipy.signal # pip install scipy
 
 class AnalyzerParams:
@@ -87,9 +89,21 @@ class Analyzer:
         self.control: Control | None = None
         self.stream: Stream | None = None
         self.cal_data: dict | None = None
+        
+        self.fft_plot: FFTProcessor | None = None
+        self.fft_energy: FFTProcessor | None = None
+        self.sig_proc: SigProc | None = None
+        self.fft_plot_left : np.ndarray | None = None
+        self.fft_plot_right : np.ndarray | None = None
+        self.fft_energy_left : np.ndarray | None = None
+        self.fft_energy_right : np.ndarray | None = None
+
+        self.amplitude_unit: str = "dbv" # Lowercase. Use dbv or dbu
+        self.distortion_unit: str = "db" # Lowercase. Use db or pct
 
     def init(self, sample_rate: int = 192000, max_input_level: int = 0, max_output_level: int = 18, 
-             pre_buf: int = 2048, post_buf: int = 2048, fft_size: int = 16384, window_type='boxcar') -> AnalyzerParams:
+             pre_buf: int = 2048, post_buf: int = 2048, fft_size: int = 16384, window_type='boxcar',
+             amplitude_unit: str = "dbv", distortion_unit: str = "db") -> AnalyzerParams:
         """
         Initializes the analyzer hardware with the specified parameters.
 
@@ -233,3 +247,64 @@ class Analyzer:
         right_wave.set_buffer(right_adc_data)
 
         return left_wave, right_wave
+
+             
+    def run(self, left_dac_data: np.ndarray, right_dac_data: np.ndarray) -> tuple[Wave, Wave]:
+        
+        # submit the DAC data, and collect the ADC data
+        left_adc_data, right_adc_data = self.send_receive(left_dac_data, right_dac_data)
+        
+        # The Wave buffers have 3 region: pre-, main- and post-buffers. The pre- and post- are used
+        # to give protection against startup glitches. What we're really interested in is the main 
+        # buffer. This will be the size of the fft_size we specify in the init. We isolate that
+        # main buffer here
+        left_adc_data_main = left_adc_data.get_main_buffer()
+        right_adc_data_main = right_adc_data.get_main_buffer()
+        
+        # We'll build two FFTProcessor instances. One will handle plotting, the other will handle energy calcs
+        self.fft_plot = FFTProcessor(self.params)
+        self.fft_energy = FFTProcessor(self.params)
+        
+        # Generate ffts for both plots and energy. We'll keep all as linear quantities for all future calcs
+        self.fft_plot_left, self.fft_plot_right = self.fft_plot.fft_forward(left_adc_data_main, right_adc_data_main).apply_acf().get_result()
+        self.fft_energy_left, self.fft_energy_right = self.fft_energy.fft_forward(left_adc_data_main, right_adc_data_main).apply_ecf().get_result()
+        self.sig_proc = SigProc(self.params)
+
+        return left_adc_data, right_adc_data
+
+    # Returns an array of frequencies given the user-specified params
+    def get_frequency_array(self) -> np.ndarray:
+        return self.fft_plot.get_frequencies()
+    
+    # Returns an array of amplitudes based on 
+    def get_amplitude_array(self, amplitude_unit: str = None) -> tuple[np.ndarray, np.ndarray]:
+        if amplitude_unit is None:
+            amplitude_unit = self.amplitude_unit
+            
+        if amplitude_unit == "dbv":
+            fft_left_db = linear_array_to_dBV(self.fft_plot_left)
+            fft_right_db = linear_array_to_dBV(self.fft_plot_right)
+        elif amplitude_unit == "dbu":
+            fft_left_db = linear_array_to_dBu(self.fft_plot_left)
+            fft_right_db = linear_array_to_dBu(self.fft_plot_right)
+        else:
+            raise ValueError(f"unknown amplitude units: {amplitude_unit}") 
+            
+        
+        return fft_left_db, fft_right_db
+
+    def compute_rms(self, start_freq:float, stop_freq:float, amplitude_unit: str = None) -> tuple[float, float]:
+        if amplitude_unit is None:
+            amplitude_unit = self.amplitude_unit
+    
+        # compute rms in dBV
+        left_rms = self.sig_proc.compute_rms(self.fft_energy_left, start_freq, stop_freq)
+        left_rms = self.sig_proc.to_dBV(left_rms)
+        right_rms = self.sig_proc.compute_rms(self.fft_energy_right, start_freq, stop_freq)
+        right_rms = self.sig_proc.to_dBV(right_rms)
+        
+        if amplitude_unit == "dBu":
+            left_rms = left_rms + 2.21  # dBV to dBu conversion
+            right_rms = right_rms + 2.21
+
+        return left_rms, right_rms
