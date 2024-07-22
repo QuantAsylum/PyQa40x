@@ -5,13 +5,14 @@ import atexit
 
 #from PyQa40x.helpers import linear_array_to_dBV, linear_array_to_dBu  # pip install libusb1
 
-from .registers import Registers
-from .control import Control
-from .stream import Stream
-from .wave_sine import Wave
-from .fft_processor import FFTProcessor
-from .sig_proc import SigProc
-from .helpers import *
+from PyQa40x.registers import Registers
+from PyQa40x.control import Control
+from PyQa40x.stream import Stream
+from PyQa40x.wave_sine import Wave
+from PyQa40x.fft_processor import FFTProcessor
+from PyQa40x.sig_proc import SigProc
+from PyQa40x.helpers import *
+
 import scipy.signal # pip install scipy
 
 class AnalyzerParams:
@@ -211,9 +212,11 @@ class Analyzer:
 
         # Collect ADC data. This is bytes
         interleaved_adc_data = self.stream.collect_remaining_adc_data()
-
+        
         # Convert collected ADC data back to int
         interleaved_adc_data = np.frombuffer(interleaved_adc_data, dtype=np.int32)
+        
+        print(interleaved_adc_data[:8])
 
         # Separate interleaved ADC data into left and right channels. This is int
         left_adc_data_int = interleaved_adc_data[0::2]

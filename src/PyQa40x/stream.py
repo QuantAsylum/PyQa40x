@@ -25,7 +25,7 @@ class Stream:
         self.adcQueue = queue.Queue()  # Unlimited queue for received data buffers
         self.transfer_helper = usb1.USBTransferHelper()  # Use the callback dispatcher
         self.transfer_helper.setEventCallback(usb1.TRANSFER_COMPLETED, self.callback)  # Set ours
-        self.received_data = bytearray()  # Collection of received data bytes
+        #self.received_data = bytearray()  # Collection of received data bytes
         self.thread = None
         self.running = False
 
@@ -36,6 +36,7 @@ class Stream:
         self.thread = threading.Thread(target=self.worker)
         self.running = True
         self.thread.start()
+        self.received_data = bytearray() 
         self.registers.write(8, 0x05)  # Start streaming
 
     def stop(self):
@@ -94,4 +95,5 @@ class Stream:
         # Wait for all remaining ADC transfers to complete
         while not self.adcQueue.empty():
             self.context.handleEvents()
+                        
         return self.received_data
