@@ -216,8 +216,6 @@ class Analyzer:
         # Convert collected ADC data back to int
         interleaved_adc_data = np.frombuffer(interleaved_adc_data, dtype=np.int32)
         
-        print(interleaved_adc_data[:8])
-
         # Separate interleaved ADC data into left and right channels. This is int
         left_adc_data_int = interleaved_adc_data[0::2]
         right_adc_data_int = interleaved_adc_data[1::2]
