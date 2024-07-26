@@ -1,6 +1,7 @@
 # __init__.py in PyQa40x
 
-from .analyzer import Analyzer, AnalyzerParams
+from .analyzer import Analyzer
+from .analyzer import AnalyzerParams
 from .wave_sine import Wave, WaveSine
 from .registers import Registers
 from .control import Control

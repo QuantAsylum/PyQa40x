@@ -1,5 +1,21 @@
 import numpy as np
 
+def remove_dc(array: np.ndarray) -> np.ndarray:
+    """
+    Removes the DC component from an array by subtracting the mean of the array.
+
+    Args:
+        array (np.ndarray): The input array from which to remove the DC component.
+
+    Returns:
+        np.ndarray: The array with the DC component removed.
+    """
+    return array - np.mean(array)
+
+def dbv_to_vpk(value: np.float64) -> np.float64:
+    vpk = np.power(10, value / 20) * np.sqrt(2)
+    return vpk
+
 def linear_to_dBV(value: np.float64) -> np.float64:
     """
     Convert a linear value to dBV.

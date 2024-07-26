@@ -3,7 +3,6 @@ import usb1  # pip install libusb1
 import struct
 import atexit
 
-#from PyQa40x.helpers import linear_array_to_dBV, linear_array_to_dBu  # pip install libusb1
 
 from PyQa40x.registers import Registers
 from PyQa40x.control import Control
@@ -12,71 +11,9 @@ from PyQa40x.wave_sine import Wave
 from PyQa40x.fft_processor import FFTProcessor
 from PyQa40x.sig_proc import SigProc
 from PyQa40x.helpers import *
+from PyQa40x.analyzer_params import AnalyzerParams
 
 import scipy.signal # pip install scipy
-
-class AnalyzerParams:
-    def __init__(self, sample_rate: int = 192000, max_input_level: int = 0, max_output_level: int = 18, 
-                 pre_buf: int = 2048, post_buf: int = 2048, fft_size: int = 16384, window_type='boxcar'):
-        """
-        Initializes the AnalyzerParams class with default or specified parameters.
-
-        Args:
-            sample_rate (int): Sample rate for the hardware. Valid values are 48000, 96000, 192000.
-            max_input_level (int): Maximum input level in dBV. Valid values are 0, 6, 12, 18, 24, 30, 36, 42.
-            max_output_level (int): Maximum output level in dBV. Valid values are 18, 8, -2, -12.
-            pre_buf (int): Size of the pre-buffer.
-            post_buf (int): Size of the post-buffer.
-            fft_size (int): Size of the FFT.
-            window_type (str): Type of window function to apply to the signal before FFT.
-        """
-        self.sample_rate: int = sample_rate
-        self.max_input_level: int = max_input_level
-        self.max_output_level: int = max_output_level
-        self.pre_buf: int = pre_buf
-        self.post_buf: int = post_buf
-        self.fft_size: int = fft_size
-
-        self.window_type = window_type
-        self.window = scipy.signal.get_window(self.window_type, self.fft_size)
-        mean_w = np.mean(self.window)
-        self.ACF = 1 / mean_w
-        rms_w = np.sqrt(np.mean(self.window ** 2))
-        self.ECF = 1 / rms_w
-
-    def __str__(self) -> str:
-        """
-        Returns a string representation of the AnalyzerParams instance.
-
-        Returns:
-            str: String representation of the parameters formatted as a table.
-        """
-        params = [
-            ("Sample Rate", f"{self.sample_rate} Hz"),
-            ("Max Input Level", f"{self.max_input_level} dBV"),
-            ("Max Output Level", f"{self.max_output_level} dBV"),
-            ("Pre Buffer", f"{self.pre_buf}"),
-            ("Post Buffer", f"{self.post_buf}"),
-            ("FFT Size", f"{self.fft_size}"),
-            ("Window Type", f"{self.window_type}")
-        ]
-        
-        col_widths = [max(len(item[i]) for item in params) for i in range(2)]
-        col_widths[1] += 5  # Add padding
-
-        table = "===== ACQUISITION PARAMETERS =====\n"
-        rows = len(params)
-        cols = 3
-        
-        for row in range(0, rows, cols):
-            row_str = ""
-            for col in range(cols):
-                if row + col < rows:
-                    name, value = params[row + col]
-                    row_str += f"{name.ljust(col_widths[0])} : {value.ljust(col_widths[1])}   "
-            table += row_str.strip() + "\n"
-        
-        return table
 
 class Analyzer:
     def __init__(self):
@@ -94,10 +31,10 @@ class Analyzer:
         self.fft_plot: FFTProcessor | None = None
         self.fft_energy: FFTProcessor | None = None
         self.sig_proc: SigProc | None = None
-        self.fft_plot_left : np.ndarray | None = None
-        self.fft_plot_right : np.ndarray | None = None
-        self.fft_energy_left : np.ndarray | None = None
-        self.fft_energy_right : np.ndarray | None = None
+        self.fft_plot_left : np.array | None = None
+        self.fft_plot_right : np.array | None = None
+        self.fft_energy_left : np.array | None = None
+        self.fft_energy_right : np.array | None = None
 
         self.amplitude_unit: str = "dbv" # Lowercase. Use dbv or dbu
         self.distortion_unit: str = "db" # Lowercase. Use db or pct
@@ -146,13 +83,13 @@ class Analyzer:
         return self.params
 
     def cleanup(self):
-        """
-        Cleans up resources by releasing the USB interface and closing the context.
-        """
-        if self.device:
-            self.device.releaseInterface(0)
-        if self.context:
-            self.context.close()
+        try:
+            if self.device:
+                self.device.releaseInterface(0)
+            if self.context:
+                self.context.close()
+        except Exception as e:
+            print(f"An error occurred during cleanup: {e}")
             
     def send_receive(self, left_dac_data: np.ndarray, right_dac_data: np.ndarray) -> tuple[Wave, Wave]:
         """
@@ -242,15 +179,15 @@ class Analyzer:
             right_adc_data = np.resize(right_adc_data, expected_shape)
 
         # Create instances of Wave with the full buffers
-        left_wave = Wave(self)
-        right_wave = Wave(self)
+        left_wave = Wave(self.params)
+        right_wave = Wave(self.params)
         left_wave.set_buffer(left_adc_data)
         right_wave.set_buffer(right_adc_data)
 
         return left_wave, right_wave
 
              
-    def run(self, left_dac_data: np.ndarray, right_dac_data: np.ndarray) -> tuple[Wave, Wave]:
+    def run(self, left_dac_data: np.ndarray, right_dac_data: np.ndarray) -> tuple['Wave', 'Wave']:
         
         # submit the DAC data, and collect the ADC data
         left_adc_data, right_adc_data = self.send_receive(left_dac_data, right_dac_data)
@@ -278,7 +215,7 @@ class Analyzer:
         return self.fft_plot.get_frequencies()
     
     # Returns an array of amplitudes based on 
-    def get_amplitude_array(self, amplitude_unit: str = None) -> tuple[np.ndarray, np.ndarray]:
+    def get_amplitude_array(self, amplitude_unit: str = None) -> tuple[np.array, np.array]:
         if amplitude_unit is None:
             amplitude_unit = self.amplitude_unit
             
@@ -291,7 +228,6 @@ class Analyzer:
         else:
             raise ValueError(f"unknown amplitude units: {amplitude_unit}") 
             
-        
         return fft_left_db, fft_right_db
 
     def compute_rms(self, start_freq:float, stop_freq:float, amplitude_unit: str = None) -> tuple[float, float]:

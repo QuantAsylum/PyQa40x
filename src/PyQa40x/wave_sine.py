@@ -1,56 +1,12 @@
 import numpy as np
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    from .analyzer import Analyzer
-
-class Wave:
-    def __init__(self, analyzer: 'Analyzer'):
-        """
-        Initializes the Wave class with an instance of Analyzer.
-        
-        Args:
-            analyzer (Analyzer): An instance of the Analyzer class.
-        """
-        self.analyzer = analyzer
-        self.sample_rate: int = analyzer.params.sample_rate
-        self.pre_buf: int = analyzer.params.pre_buf
-        self.post_buf: int = analyzer.params.post_buf
-        self.fft_size: int = analyzer.params.fft_size
-        self.buffer: np.ndarray = np.zeros(self.pre_buf + self.fft_size + self.post_buf)
-
-    def set_buffer(self, buffer: np.ndarray):
-        """
-        Sets the waveform buffer.
-
-        Args:
-            buffer (np.ndarray): The waveform buffer to set.
-        """
-        if buffer.shape != self.buffer.shape:
-            raise ValueError("Buffer shape does not match the expected shape")
-        self.buffer = buffer
-
-    def get_buffer(self) -> np.ndarray:
-        """
-        Returns the current waveform buffer, including pre-, main- and post-buffer.
-
-        Returns:
-            np.ndarray: The current waveform buffer.
-        """
-        return self.buffer
-
-    def get_main_buffer(self) -> np.ndarray:
-        """
-        Returns the central portion of the waveform buffer that matches the fft_size.
-
-        Returns:
-            np.ndarray: The central fft_size portion of the waveform buffer.
-        """
-        start_idx = self.pre_buf
-        end_idx = start_idx + self.fft_size
-        return self.buffer[start_idx:end_idx]
+from PyQa40x.analyzer_params import AnalyzerParams
+from PyQa40x.wave import Wave
 
 class WaveSine(Wave):
+    def __init__(self, params: AnalyzerParams):
+        # Initialize the parent class with the AnalyzerParams instance
+        super().__init__(params)
+        
     def gen_sine_dbv(self, frequency: float, dbv: float, snap_freq: bool = True) -> 'WaveSine':
         """
         Generates a sine wave of a given frequency and amplitude in dBV and adds it to the buffer.
