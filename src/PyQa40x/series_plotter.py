@@ -2,13 +2,42 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 class SeriesPlotter:
-    def __init__(self, num_columns=2, main_title="", main_title_fontsize=16):
-        self.num_columns = num_columns
-        self.rows = [[]]
-        self.main_title = main_title
-        self.main_title_fontsize = main_title_fontsize
+    def __init__(self, num_columns: int = 2, main_title: str = "", main_title_fontsize: int = 16):
+        """
+        Initializes the SeriesPlotter class.
 
-    def add_time_series(self, signal, label, signal_right=None, num_samples=0, units="Volts", units_right="Volts", ymin=None, ymax=None, ymin_right=None, ymax_right=None, xmin=None, xmax=None, logx=False):
+        Args:
+            num_columns (int): Number of columns per row in the plot grid.
+            main_title (str): Main title of the plot.
+            main_title_fontsize (int): Font size of the main title.
+        """
+        self.num_columns: int = num_columns
+        self.rows: list[list[dict]] = [[]]
+        self.main_title: str = main_title
+        self.main_title_fontsize: int = main_title_fontsize
+
+    def add_time_series(self, signal: np.ndarray, label: str, signal_right: np.ndarray | None = None, num_samples: int = 0, 
+                        units: str = "Volts", units_right: str = "Volts", ymin: float | None = None, ymax: float | None = None, 
+                        ymin_right: float | None = None, ymax_right: float | None = None, xmin: float | None = None, 
+                        xmax: float | None = None, logx: bool = False):
+        """
+        Adds a time series plot to the current row.
+
+        Args:
+            signal (np.ndarray): Array of time series data.
+            label (str): Label for the plot.
+            signal_right (np.ndarray | None): Array of right channel time series data, if any.
+            num_samples (int): Number of samples to plot.
+            units (str): Units for the left y-axis.
+            units_right (str): Units for the right y-axis.
+            ymin (float | None): Minimum value for the left y-axis.
+            ymax (float | None): Maximum value for the left y-axis.
+            ymin_right (float | None): Minimum value for the right y-axis.
+            ymax_right (float | None): Maximum value for the right y-axis.
+            xmin (float | None): Minimum value for the x-axis.
+            xmax (float | None): Maximum value for the x-axis.
+            logx (bool): Whether to use a logarithmic scale for the x-axis.
+        """
         self.rows[-1].append({
             'type': 'time',
             'signal': signal,
@@ -26,7 +55,29 @@ class SeriesPlotter:
             'logx': logx
         })
 
-    def add_freq_series(self, freqs, magnitudes, label, magnitudes_right=None, num_samples=0, units="dBV", units_right="dBV", ymin=None, ymax=None, ymin_right=None, ymax_right=None, xmin=None, xmax=None, logx=False):
+    def add_freq_series(self, freqs: np.ndarray, magnitudes: np.ndarray, label: str, magnitudes_right: np.ndarray | None = None, 
+                        num_samples: int = 0, units: str = "dBV", units_right: str = "dBV", ymin: float | None = None, 
+                        ymax: float | None = None, ymin_right: float | None = None, ymax_right: float | None = None, 
+                        xmin: float | None = None, xmax: float | None = None, logx: bool = False):
+        """
+        Adds a frequency series plot to the current row.
+
+        Args:
+            freqs (np.ndarray): Array of frequency data.
+            magnitudes (np.ndarray): Array of magnitude data.
+            label (str): Label for the plot.
+            magnitudes_right (np.ndarray | None): Array of right channel magnitude data, if any.
+            num_samples (int): Number of samples to plot.
+            units (str): Units for the left y-axis.
+            units_right (str): Units for the right y-axis.
+            ymin (float | None): Minimum value for the left y-axis.
+            ymax (float | None): Maximum value for the left y-axis.
+            ymin_right (float | None): Minimum value for the right y-axis.
+            ymax_right (float | None): Maximum value for the right y-axis.
+            xmin (float | None): Minimum value for the x-axis.
+            xmax (float | None): Maximum value for the x-axis.
+            logx (bool): Whether to use a logarithmic scale for the x-axis.
+        """
         if logx:
             xmin = xmin if xmin is not None else 20
             xmax = xmax if xmax is not None else 20000
@@ -50,11 +101,20 @@ class SeriesPlotter:
         })
 
     def newrow(self):
+        """
+        Starts a new row for the plots.
+        """
         if self.rows[-1]:
             self.rows.append([])
 
-    def plot(self, block=True):
-        mosaic_layout = []
+    def plot(self, block: bool = True):
+        """
+        Plots the added time and frequency series.
+
+        Args:
+            block (bool): Whether to block the execution until the plot window is closed.
+        """
+        mosaic_layout: list[list[str | None]] = []
         for row in self.rows:
             if not row:  # Skip empty rows
                 continue
@@ -67,7 +127,7 @@ class SeriesPlotter:
             if num_elements < self.num_columns:
                 span_each = self.num_columns // num_elements
                 remainder = self.num_columns % num_elements
-                new_row = []
+                new_row: list[str | None] = []
                 for i in range(num_elements):
                     span = span_each + (1 if i < remainder else 0)
                     new_row.extend([row[i]['label']] * span)
@@ -75,7 +135,7 @@ class SeriesPlotter:
             else:
                 mosaic_layout.append([trace['label'] for trace in row])
 
-        label_to_trace = {trace['label']: trace for row in self.rows for trace in row}
+        label_to_trace: dict[str, dict] = {trace['label']: trace for row in self.rows for trace in row}
 
         fig, axd = plt.subplot_mosaic(mosaic_layout, figsize=(5 * self.num_columns, 4 * len(mosaic_layout)))
 
@@ -161,5 +221,3 @@ class SeriesPlotter:
 
         plt.tight_layout(rect=[0, 0, 1, 0.95])  # Adjust layout to reduce whitespace
         plt.show(block=block)
-
-

@@ -1,6 +1,8 @@
 import numpy as np
 from PyQa40x.analyzer_params import AnalyzerParams
 from PyQa40x.wave import Wave
+from PyQa40x.math_sines import *
+from PyQa40x.helpers import *
 
 class WaveSine(Wave):
     def __init__(self, params: AnalyzerParams):
@@ -19,7 +21,7 @@ class WaveSine(Wave):
         Returns:
             WaveSine: The instance of the WaveSine class to allow method chaining.
         """
-        amplitude: float = self.dbv_to_linear_pk(dbv)
+        amplitude: float = dbv_to_linear_pk(dbv)
         return self._add_sine_wave(frequency, amplitude, snap_freq)
 
     def gen_sine_dbu(self, frequency: float, dbu: float, snap_freq: bool = True) -> 'WaveSine':
@@ -66,10 +68,10 @@ class WaveSine(Wave):
             WaveSine: The instance of the WaveSine class to allow method chaining.
         """
         num_samples: int = len(self.buffer)
-        t: np.ndarray = np.arange(num_samples) / self.sample_rate
+        t: np.ndarray = np.arange(num_samples) / self.params.sample_rate
 
         if snap_freq:
-            bin_resolution = self.sample_rate / self.fft_size
+            bin_resolution = self.params.sample_rate / self.params.fft_size
             frequency = round(frequency / bin_resolution) * bin_resolution
             print(f"_add_sine_wave: adjusted freq to {frequency}")
 
@@ -77,18 +79,37 @@ class WaveSine(Wave):
         self.buffer += sine_wave
 
         return self
+    
+    def compute_thd_db(self, fundamental: Optional[float] = None, window: float = 100.0, num_harmonics: int = 5) -> float:
+            """
+            Computes the Total Harmonic Distortion (THD) of the sine wave in dB.
 
-    @staticmethod
-    def dbv_to_linear_pk(dbv: float) -> float:
+            Parameters:
+            fundamental (Optional[float]): The specified fundamental frequency. If None, uses the instance's frequency.
+            window (float): The frequency window around the fundamental to search for the actual fundamental.
+            num_harmonics (int): The number of harmonics to include in the THD calculation.
+
+            Returns:
+            float: The THD of the signal in dB.
+            """
+            if fundamental is None:
+                fundamental = self.frequency
+            return compute_thd_db(self.signal, self.params.sample_rate, fundamental, window, num_harmonics)
+
+    def compute_thd_pct(self, fundamental: Optional[float] = None, window: float = 100.0, num_harmonics: int = 5) -> float:
         """
-        Converts dBV to linear peak voltage.
+        Computes the Total Harmonic Distortion (THD) of the sine wave in percentage.
 
-        Args:
-            dbv (float): Amplitude in dBV.
+        Parameters:
+        fundamental (Optional[float]): The specified fundamental frequency. If None, uses the instance's frequency.
+        window (float): The frequency window around the fundamental to search for the actual fundamental.
+        num_harmonics (int): The number of harmonics to include in the THD calculation.
 
         Returns:
-            float: Amplitude in linear peak voltage.
+        float: The THD of the signal as a percentage.
         """
-        linear_rms: float = 10**(dbv / 20)
-        linear_peak: float = linear_rms * np.sqrt(2)
-        return linear_peak
+        if fundamental is None:
+            fundamental = self.frequency
+        return compute_thd_pct(self.signal, self.params.sample_rate, fundamental, window, num_harmonics)
+
+

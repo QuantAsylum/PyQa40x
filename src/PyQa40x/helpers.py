@@ -56,6 +56,20 @@ def dBV_to_linear(dBV: np.float64) -> np.float64:
     linear_value = 10**(dBV / 20.0)
     return linear_value
 
+def dbv_to_linear_pk(dbv: float) -> float:
+    """
+    Converts dBV to linear peak voltage.
+
+    Args:
+        dbv (float): Amplitude in dBV.
+
+    Returns:
+        float: Amplitude in linear peak voltage.
+    """
+    linear_rms = dBV_to_linear(np.float64(dbv))
+    linear_peak = linear_rms * np.sqrt(2)
+    return float(linear_peak)
+
 def dBu_to_linear(dBu: np.float64) -> np.float64:
     """
     Convert dBu value back to linear.
