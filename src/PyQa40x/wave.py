@@ -1,18 +1,20 @@
 import numpy as np
 from PyQa40x.analyzer_params import AnalyzerParams
 from PyQa40x.fft_processor import FFTProcessor
-from PyQa40x.helpers import *
+from PyQa40x.helpers import linear_to_dBV, linear_to_dBu, linear_array_to_dBV, linear_array_to_dBu
 import PyQa40x.math_sines as ms
 import PyQa40x.math_energy as me
 
-
 class Wave:
-    def __init__(self, params: AnalyzerParams):
+    def __init__(self, params: AnalyzerParams, amplitude_unit: str = "dbv", distortion_unit: str = "db", energy_unit: str = "dbv"):
         """
         Initializes the Wave class with an instance of AnalyzerParams.
         
         Args:
             params (AnalyzerParams): An instance of the AnalyzerParams class.
+            amplitude_unit (str): Default unit for amplitude measurements.
+            distortion_unit (str): Default unit for distortion measurements.
+            energy_unit (str): Default unit for energy measurements.
         """
         self.params = params
         self.buffer: np.ndarray = np.zeros(self.params.pre_buf + self.params.fft_size + self.params.post_buf)
@@ -22,10 +24,9 @@ class Wave:
         self.fft_plot_signal: np.ndarray | None = None
         self.fft_energy_signal: np.ndarray | None = None
 
-        self.amplitude_unit: str = "dbv"  # Lowercase. Use dbv or dbu or volts
-        self.energy_unit: str = "dbv"     # Lowercase. Use dbv or dbu or volts
-        self.distortion_unit: str = "db"  # Lowercase. Use db or pct
-        
+        self.amplitude_unit: str = amplitude_unit  # Lowercase. Use dbv or dbu
+        self.distortion_unit: str = distortion_unit  # Lowercase. Use db or pct
+        self.energy_unit: str = energy_unit  # Lowercase. Use dbv, dbu, V, or V²
 
     def set_buffer(self, buffer: np.ndarray):
         """
@@ -69,14 +70,13 @@ class Wave:
         self.fft_plot = FFTProcessor(self.params)
         self.fft_energy = FFTProcessor(self.params)
 
-        self.fft_plot_signal = self.fft_plot.fft_forward(self.get_main_buffer()).apply_acf().get_result();
+        self.fft_plot_signal = self.fft_plot.fft_forward(self.get_main_buffer()).apply_acf().get_result()
         self.fft_energy_signal = self.fft_energy.fft_forward(self.get_main_buffer()).apply_ecf().get_result()
         
     def compute_fft_if_needed(self):
         if self.fft_plot is None or self.fft_energy is None:
             self.compute_fft()
             
-
     def compute_instantaneous_dbspl(self, dbSpl_at_0dbv: float, rms_slice_interval_ms: float) -> tuple[np.ndarray, np.ndarray]:
         """
         Computes the instantaneous dB SPL values from the main waveform buffer.
@@ -116,45 +116,105 @@ class Wave:
         
         return np.array(dbspl_values), time_values
 
-    def compute_thd_db(self, fundamental: float, window_pmHz: float = 100.0, num_harmonics: int = 5) -> float:
+    def convert_to_amplitude_units(self, value: float, unit: str) -> float:
         """
-        Computes the Total Harmonic Distortion (THD) of the sine wave in dB.
+        Converts a linear value to the specified amplitude unit (dbv, dbu, or volts).
 
         Parameters:
-        fundamental (Optional[float]): The specified fundamental frequency. If None, uses the instance's frequency.
-        window (float): The frequency window around the fundamental to search for the actual fundamental.
-        num_harmonics (int): The number of harmonics to include in the THD calculation.
+        value (float): The linear value to convert.
+        unit (str): The unit to convert to ('dbv', 'dbu', or 'V').
 
         Returns:
-        float: The THD of the signal in dB.
+        float: The converted value.
         """
+        if unit == "dbv":
+            return linear_to_dBV(value)
+        elif unit == "dbu":
+            return linear_to_dBu(value)
+        elif unit == "V":
+            return value
+        else:
+            raise ValueError(f"Unknown unit: {unit}")
 
-        self.compute_fft_if_needed()
-        return ms.compute_thd_db(self.fft_plot_signal, self.get_frequency_array(), fundamental, window_pmHz, num_harmonics)
-
-    def compute_thd_pct(self, fundamental: float = None, window: float = 100.0, num_harmonics: int = 5) -> float:
+    def convert_to_energy_units(self, value: float, unit: str) -> float:
         """
-        Computes the Total Harmonic Distortion (THD) of the sine wave in percentage.
+        Converts a linear THD value to the specified unit (db or percentage).
 
         Parameters:
-        fundamental (Optional[float]): The specified fundamental frequency. If None, uses the instance's frequency.
-        window (float): The frequency window around the fundamental to search for the actual fundamental.
-        num_harmonics (int): The number of harmonics to include in the THD calculation.
+        value (float): The linear THD value to convert.
+        unit (str): The unit to convert to ('db' or 'pct').
 
         Returns:
-        float: The THD of the signal as a percentage.
+        float: The converted value.
+        """
+        if unit == "db":
+            return 20 * np.log10(value)
+        elif unit == "pct":
+            return value * 100
+        else:
+            raise ValueError(f"Unknown unit: {unit}")
+
+    def compute_thd(self, fundamental: float, num_harmonics: int = 5, unit: str = None, debug: bool = False) -> float:
+        """
+        Computes the Total Harmonic Distortion (THD) of the sine wave in the specified unit.
+
+        Parameters:
+        fundamental (float): The specified fundamental frequency.
+        window_pmHz (float): The frequency window around the fundamental to search for the actual fundamental.
+        num_harmonics (int): The number of harmonics to include in the THD calculation.
+        unit (str): The unit for the THD ('db', 'pct', or 'V'). Defaults to the instance's default unit.
+        debug (bool): If True, print debug information.
+
+        Returns:
+        float: The THD of the signal in the specified unit.
         """
         self.compute_fft_if_needed()
-        return ms.compute_thd_pct(self.fft_plot_signal, self.get_frequency_array(), fundamental, window, num_harmonics)
+        thd_linear = ms.compute_thd_linear(self.fft_plot_signal, self.get_frequency_array(), fundamental, num_harmonics, debug)
+
+        if unit is None:
+            unit = self.distortion_unit
+
+        thd_converted = self.convert_to_energy_units(thd_linear, unit)
+        if debug:
+            print(f"THD ({unit}): {thd_converted:.2f} {unit}")
+
+        return thd_converted
+
+    def compute_thdn(self, fundamental: float, notch_octaves: float = 0.5, start_freq: float = 20.0, stop_freq: float = 20000.0, unit: str = None, debug: bool = False) -> float:
+        """
+        Computes the Total Harmonic Distortion plus Noise (THDN) of the sine wave in the specified unit.
+
+        Parameters:
+        fundamental (float): The specified fundamental frequency.
+        notch_octaves (float): The bandwidth of the notch filter in plus/minus octaves around the fundamental.
+        start_freq (float): The start frequency for the THDN measurement.
+        stop_freq (float): The stop frequency for the THDN measurement.
+        unit (str): The unit for the THDN ('db', 'pct', or 'V'). Defaults to the instance's default unit.
+        debug (bool): If True, print debug information.
+
+        Returns:
+        float: The THDN of the signal in the specified unit.
+        """
+        self.compute_fft_if_needed()
+        thdn_linear = ms.compute_thdn_linear(self.fft_plot_signal, self.get_frequency_array(), fundamental, notch_octaves, start_freq, stop_freq, debug)
+
+        if unit is None:
+            unit = self.distortion_unit
+
+        thdn_converted = self.convert_to_energy_units(thdn_linear, unit)
+        if debug:
+            print(f"THDN ({unit}): {thdn_converted:.2f} {unit}")
+
+        return thdn_converted
 
     def compute_rms_freq(self, start_freq: float, stop_freq: float, unit: str = None, debug: bool = False) -> float:
         """
-        Computes the RMS value of the sine wave over a specified frequency range.
+        Computes the RMS value of the frequency spectrum over a specified frequency range.
 
         Parameters:
         start_freq (float): The start frequency of the range over which to compute the RMS value.
         stop_freq (float): The end frequency of the range over which to compute the RMS value.
-        unit (str): Unit for the amplitude ('dbv' or 'dbu'). Defaults to the instance's default unit.
+        unit (str): Unit for the amplitude ('dbv', 'dbu', or 'V'). Defaults to the instance's default unit.
         debug (bool): If True, print debug information.
 
         Returns:
@@ -163,29 +223,22 @@ class Wave:
         self.compute_fft_if_needed()
         rms_value = me.compute_rms_freq(self.fft_energy_signal, self.get_frequency_array(), start_freq, stop_freq, debug)
         
-        # Convert RMS value to the specified unit
         if unit is None:
-            unit = self.amplitude_unit
+            unit = self.energy_unit
 
-        if unit == "dbv":
-            rms_value_db = linear_to_dBV(rms_value)
-        elif unit == "dbu":
-            rms_value_db = linear_to_dBu(rms_value)
-        else:
-            raise ValueError(f"Unknown amplitude units: {unit}")
-
+        rms_converted = self.convert_to_amplitude_units(rms_value, unit)
         if debug:
-            print(f"RMS Value ({unit}): {rms_value_db:.2f} dB")
+            print(f"RMS Value ({unit}): {rms_converted:.2f} {unit}")
 
-        return rms_value_db
-    
+        return rms_converted
+
     def remove_dc(self):
         """
         Removes the DC component from the waveform buffer.
         """        
         # Subtract the mean value from the entire buffer to remove DC component
         self.buffer -= np.mean(self.buffer)
-        
+
     def get_frequency_array(self) -> np.ndarray:
         """
         Returns an array of frequencies given the user-specified parameters.
@@ -204,7 +257,7 @@ class Wave:
             amplitude_unit (str | None): Unit for amplitude measurements, default is None.
 
         Returns:
-            tuple[np.ndarray, np.ndarray]: Tuple containing arrays of left and right channel amplitudes.
+            np.ndarray: Array of amplitudes.
         """
         self.compute_fft_if_needed()
         
@@ -219,3 +272,5 @@ class Wave:
             raise ValueError(f"Unknown amplitude units: {amplitude_unit}") 
             
         return fft_dB
+
+
