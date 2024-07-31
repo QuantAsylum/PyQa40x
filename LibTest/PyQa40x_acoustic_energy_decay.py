@@ -37,7 +37,7 @@ wc = WaveChirp(params)
 wave_dac = wc.gen_chirp_dbv(-5)
 
 # Send the DAC buffers to the hardware, and collect the left ADC buffer
-wave_adc, _ = analyzer.send_receive(wave_dac.get_buffer(), wave_dac.get_buffer())
+wave_adc, _ = analyzer.send_receive(wave_dac, wave_dac)
 
 # Remove DC
 wave_adc.remove_dc()

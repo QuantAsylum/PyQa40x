@@ -26,17 +26,6 @@ class Analyzer:
         self.stream: Stream | None = None
         self.cal_data: dict | None = None
         
-        self.fft_plot: FFTProcessor | None = None
-        self.fft_energy: FFTProcessor | None = None
-        self.sig_proc: SigProc | None = None
-        self.fft_plot_left: np.ndarray | None = None
-        self.fft_plot_right: np.ndarray | None = None
-        self.fft_energy_left: np.ndarray | None = None
-        self.fft_energy_right: np.ndarray | None = None
-
-        self.amplitude_unit: str = "dbv"  # Lowercase. Use dbv or dbu
-        self.distortion_unit: str = "db"  # Lowercase. Use db or pct
-
     def init(self, sample_rate: int = 192000, max_input_level: int = 0, max_output_level: int = 18, 
              pre_buf: int = 2048, post_buf: int = 2048, fft_size: int = 16384, window_type: str = 'boxcar',
              amplitude_unit: str = "dbv", distortion_unit: str = "db") -> AnalyzerParams:
@@ -98,21 +87,22 @@ class Analyzer:
         except Exception as e:
             print(f"An error occurred during cleanup: {e}")
 
-    def send_receive(self, left_dac_data: np.ndarray, right_dac_data: np.ndarray) -> tuple[Wave, Wave]:
+    def send_receive(self, left_wave: Wave, right_wave: Wave) -> tuple[Wave, Wave]:
         """
         Sends DAC data to the device and receives ADC data.
 
         Args:
-            left_dac_data (np.ndarray): Array of left channel DAC data.
-            right_dac_data (np.ndarray): Array of right channel DAC data.
+            left_wave (Wave): Wave instance with left channel DAC data.
+            right_wave (Wave): Wave instance with right channel DAC data.
 
         Returns:
             tuple[Wave, Wave]: Tuple containing Wave instances with left and right channel ADC data.
         """
+        left_dac_data = left_wave.get_buffer()
+        right_dac_data = right_wave.get_buffer()
+
         # On QA402 and QA403, outputs need to be swapped
-        tmp_dac = left_dac_data
-        left_dac_data = right_dac_data
-        right_dac_data = tmp_dac
+        left_dac_data, right_dac_data = right_dac_data, left_dac_data
 
         left_peak = np.max(left_dac_data)
 
@@ -194,19 +184,19 @@ class Analyzer:
         return left_wave, right_wave
 
              
-    def run(self, left_dac_data: np.ndarray, right_dac_data: np.ndarray) -> tuple[Wave, Wave]:
+    def run(self, left_wave: Wave, right_wave: Wave) -> tuple[Wave, Wave]:
         """
         Runs the analyzer by sending DAC data and receiving ADC data.
 
         Args:
-            left_dac_data (np.ndarray): Array of left channel DAC data.
-            right_dac_data (np.ndarray): Array of right channel DAC data.
+            left_wave (Wave): Wave instance with left channel DAC data.
+            right_wave (Wave): Wave instance with right channel DAC data.
 
         Returns:
             tuple[Wave, Wave]: Tuple containing Wave instances with left and right channel ADC data.
         """
         # Submit the DAC data and collect the ADC data
-        left_adc_data, right_adc_data = self.send_receive(left_dac_data, right_dac_data)
+        left_adc_data, right_adc_data = self.send_receive(left_wave, right_wave)
         
         # The Wave buffers have 3 regions: pre-, main- and post-buffers. The pre- and post- are used
         # to give protection against startup glitches. What we're really interested in is the main 
@@ -226,62 +216,31 @@ class Analyzer:
 
         return left_adc_data, right_adc_data
 
-    def get_frequency_array(self) -> np.ndarray:
-        """
-        Returns an array of frequencies given the user-specified parameters.
+   
 
-        Returns:
-            np.ndarray: Array of frequencies.
-        """
-        return self.fft_plot.get_frequencies()
+    # def compute_rms(self, start_freq: float, stop_freq: float, amplitude_unit: str | None = None) -> tuple[float, float]:
+    #     """
+    #     Computes the RMS value within the specified frequency range.
+
+    #     Args:
+    #         start_freq (float): Start frequency for the RMS calculation.
+    #         stop_freq (float): Stop frequency for the RMS calculation.
+    #         amplitude_unit (str | None): Unit for amplitude measurements, default is None.
+
+    #     Returns:
+    #         tuple[float, float]: Tuple containing RMS values for left and right channels.
+    #     """
+    #     if amplitude_unit is None:
+    #         amplitude_unit = self.amplitude_unit
     
-    def get_amplitude_array(self, amplitude_unit: str | None = None) -> tuple[np.ndarray, np.ndarray]:
-        """
-        Returns an array of amplitudes based on the specified units.
-
-        Args:
-            amplitude_unit (str | None): Unit for amplitude measurements, default is None.
-
-        Returns:
-            tuple[np.ndarray, np.ndarray]: Tuple containing arrays of left and right channel amplitudes.
-        """
-        if amplitude_unit is None:
-            amplitude_unit = self.amplitude_unit
-            
-        if amplitude_unit == "dbv":
-            fft_left_db = linear_array_to_dBV(self.fft_plot_left)
-            fft_right_db = linear_array_to_dBV(self.fft_plot_right)
-        elif amplitude_unit == "dbu":
-            fft_left_db = linear_array_to_dBu(self.fft_plot_left)
-            fft_right_db = linear_array_to_dBu(self.fft_plot_right)
-        else:
-            raise ValueError(f"Unknown amplitude units: {amplitude_unit}") 
-            
-        return fft_left_db, fft_right_db
-
-    def compute_rms(self, start_freq: float, stop_freq: float, amplitude_unit: str | None = None) -> tuple[float, float]:
-        """
-        Computes the RMS value within the specified frequency range.
-
-        Args:
-            start_freq (float): Start frequency for the RMS calculation.
-            stop_freq (float): Stop frequency for the RMS calculation.
-            amplitude_unit (str | None): Unit for amplitude measurements, default is None.
-
-        Returns:
-            tuple[float, float]: Tuple containing RMS values for left and right channels.
-        """
-        if amplitude_unit is None:
-            amplitude_unit = self.amplitude_unit
-    
-        # Compute RMS in dBV
-        left_rms = self.sig_proc.compute_rms(self.fft_energy_left, start_freq, stop_freq)
-        left_rms = self.sig_proc.to_dBV(left_rms)
-        right_rms = self.sig_proc.compute_rms(self.fft_energy_right, start_freq, stop_freq)
-        right_rms = self.sig_proc.to_dBV(right_rms)
+    #     # Compute RMS in dBV
+    #     left_rms = self.sig_proc.compute_rms(self.fft_energy_left, start_freq, stop_freq)
+    #     left_rms = self.sig_proc.to_dBV(left_rms)
+    #     right_rms = self.sig_proc.compute_rms(self.fft_energy_right, start_freq, stop_freq)
+    #     right_rms = self.sig_proc.to_dBV(right_rms)
         
-        if amplitude_unit == "dbu":
-            left_rms += 2.21  # dBV to dBu conversion
-            right_rms += 2.21
+    #     if amplitude_unit == "dbu":
+    #         left_rms += 2.21  # dBV to dBu conversion
+    #         right_rms += 2.21
 
-        return left_rms, right_rms
+    #     return left_rms, right_rms

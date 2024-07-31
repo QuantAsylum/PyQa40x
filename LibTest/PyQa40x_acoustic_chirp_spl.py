@@ -30,7 +30,7 @@ wc = WaveChirp(params)
 
 wave_dac = wc.gen_chirp_dbv(-20)
 
-wave_adc, _ = analyzer.send_receive(wave_dac.get_buffer(), wave_dac.get_buffer())
+wave_adc, _ = analyzer.send_receive(wave_dac, wave_dac)
 
 freq, fft, ir, window = wc.compute_fft_db(wave_adc.get_main_buffer())
 

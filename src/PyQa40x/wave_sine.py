@@ -80,36 +80,6 @@ class WaveSine(Wave):
 
         return self
     
-    def compute_thd_db(self, fundamental: Optional[float] = None, window: float = 100.0, num_harmonics: int = 5) -> float:
-            """
-            Computes the Total Harmonic Distortion (THD) of the sine wave in dB.
-
-            Parameters:
-            fundamental (Optional[float]): The specified fundamental frequency. If None, uses the instance's frequency.
-            window (float): The frequency window around the fundamental to search for the actual fundamental.
-            num_harmonics (int): The number of harmonics to include in the THD calculation.
-
-            Returns:
-            float: The THD of the signal in dB.
-            """
-            if fundamental is None:
-                fundamental = self.frequency
-            return compute_thd_db(self.signal, self.params.sample_rate, fundamental, window, num_harmonics)
-
-    def compute_thd_pct(self, fundamental: Optional[float] = None, window: float = 100.0, num_harmonics: int = 5) -> float:
-        """
-        Computes the Total Harmonic Distortion (THD) of the sine wave in percentage.
-
-        Parameters:
-        fundamental (Optional[float]): The specified fundamental frequency. If None, uses the instance's frequency.
-        window (float): The frequency window around the fundamental to search for the actual fundamental.
-        num_harmonics (int): The number of harmonics to include in the THD calculation.
-
-        Returns:
-        float: The THD of the signal as a percentage.
-        """
-        if fundamental is None:
-            fundamental = self.frequency
-        return compute_thd_pct(self.signal, self.params.sample_rate, fundamental, window, num_harmonics)
+ 
 
 
