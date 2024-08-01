@@ -184,37 +184,37 @@ class Analyzer:
         return left_wave, right_wave
 
              
-    def run(self, left_wave: Wave, right_wave: Wave) -> tuple[Wave, Wave]:
-        """
-        Runs the analyzer by sending DAC data and receiving ADC data.
+    # def run(self, left_wave: Wave, right_wave: Wave) -> tuple[Wave, Wave]:
+    #     """
+    #     Runs the analyzer by sending DAC data and receiving ADC data.
 
-        Args:
-            left_wave (Wave): Wave instance with left channel DAC data.
-            right_wave (Wave): Wave instance with right channel DAC data.
+    #     Args:
+    #         left_wave (Wave): Wave instance with left channel DAC data.
+    #         right_wave (Wave): Wave instance with right channel DAC data.
 
-        Returns:
-            tuple[Wave, Wave]: Tuple containing Wave instances with left and right channel ADC data.
-        """
-        # Submit the DAC data and collect the ADC data
-        left_adc_data, right_adc_data = self.send_receive(left_wave, right_wave)
+    #     Returns:
+    #         tuple[Wave, Wave]: Tuple containing Wave instances with left and right channel ADC data.
+    #     """
+    #     # Submit the DAC data and collect the ADC data
+    #     left_adc_data, right_adc_data = self.send_receive(left_wave, right_wave)
         
-        # The Wave buffers have 3 regions: pre-, main- and post-buffers. The pre- and post- are used
-        # to give protection against startup glitches. What we're really interested in is the main 
-        # buffer. This will be the size of the fft_size we specify in the init. We isolate that
-        # main buffer here
-        left_adc_data_main = left_adc_data.get_main_buffer()
-        right_adc_data_main = right_adc_data.get_main_buffer()
+    #     # The Wave buffers have 3 regions: pre-, main- and post-buffers. The pre- and post- are used
+    #     # to give protection against startup glitches. What we're really interested in is the main 
+    #     # buffer. This will be the size of the fft_size we specify in the init. We isolate that
+    #     # main buffer here
+    #     left_adc_data_main = left_adc_data.get_main_buffer()
+    #     right_adc_data_main = right_adc_data.get_main_buffer()
         
-        # We'll build two FFTProcessor instances. One will handle plotting, the other will handle energy calculations
-        self.fft_plot = FFTProcessor(self.params)
-        self.fft_energy = FFTProcessor(self.params)
+    #     # We'll build two FFTProcessor instances. One will handle plotting, the other will handle energy calculations
+    #     self.fft_plot = FFTProcessor(self.params)
+    #     self.fft_energy = FFTProcessor(self.params)
         
-        # Generate FFTs for both plots and energy. We'll keep all as linear quantities for all future calculations
-        self.fft_plot_left, self.fft_plot_right = self.fft_plot.fft_forward(left_adc_data_main, right_adc_data_main).apply_acf().get_result()
-        self.fft_energy_left, self.fft_energy_right = self.fft_energy.fft_forward(left_adc_data_main, right_adc_data_main).apply_ecf().get_result()
-        self.sig_proc = SigProc(self.params)
+    #     # Generate FFTs for both plots and energy. We'll keep all as linear quantities for all future calculations
+    #     self.fft_plot_left, self.fft_plot_right = self.fft_plot.fft_forward(left_adc_data_main, right_adc_data_main).apply_acf().get_result()
+    #     self.fft_energy_left, self.fft_energy_right = self.fft_energy.fft_forward(left_adc_data_main, right_adc_data_main).apply_ecf().get_result()
+    #     self.sig_proc = SigProc(self.params)
 
-        return left_adc_data, right_adc_data
+    #     return left_adc_data, right_adc_data
 
    
 

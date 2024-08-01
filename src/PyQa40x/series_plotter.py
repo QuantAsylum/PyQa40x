@@ -180,6 +180,7 @@ class SeriesPlotter:
 
                 elif trace['type'] == 'freq':
                     freqs = trace['freqs']
+                    num_samples = trace['num_samples']
                     magnitudes = trace['magnitudes']
                     magnitudes_right = trace['magnitudes_right']
                     units = trace['units']

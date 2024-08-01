@@ -17,9 +17,9 @@ import PyQa40x.math_chirp as mc
 # is then converted into an impulse response, and the energy of that IR is plotted.
 # The time for the energy to decay 20 dB is noted on the graph
 
-mic_ref_level_dbspl = 94 # Mic sense reference level
+mic_ref_level_dbspl = 94            # Mic sense reference level
 mic_sense_dbv_at_ref_level = -28.9  # Earthworks M23R
-preamp_gain = 0   # QA472
+preamp_gain = 0                     # QA472
 
 dbSpl_at_0dbv = mic_ref_level_dbspl - mic_sense_dbv_at_ref_level - preamp_gain
 
@@ -34,7 +34,7 @@ print(params)
 
 wc = WaveChirp(params)
 
-wave_dac = wc.gen_chirp_dbv(-5)
+wave_dac = wc.gen_chirp_dbv(-10)
 
 # Send the DAC buffers to the hardware, and collect the left ADC buffer
 wave_adc, _ = analyzer.send_receive(wave_dac, wave_dac)

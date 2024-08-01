@@ -28,6 +28,7 @@ class Wave:
         self.distortion_unit: str = distortion_unit  # Lowercase. Use db or pct
         self.energy_unit: str = energy_unit  # Lowercase. Use dbv, dbu, V, or V²
 
+
     def set_buffer(self, buffer: np.ndarray):
         """
         Sets the waveform buffer.
