@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='PyQa40x',
-    version='0.2.2',
+    version='0.2.3',
     description='A Python library for the QA40x audio analyzer',
     author='Your Name',
     author_email='your.email@example.com',

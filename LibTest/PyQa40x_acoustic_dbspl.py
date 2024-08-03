@@ -43,7 +43,7 @@ adc_amp_dbv = wave_adc.get_amplitude_array()
 
 # Plot 
 tsp = SeriesPlotter(num_columns=2)
-tsp.add_freq_series(adc_freq, adc_amp_dbv + dbSpl_at_0dbv, "dBSPL")
+tsp.add_freq_series(adc_freq, adc_amp_dbv + dbSpl_at_0dbv, "dBSPL", units="dBSPL")
 tsp.plot();
 
 analyzer.cleanup()
