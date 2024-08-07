@@ -2,6 +2,8 @@ import numpy as np
 import usb1  # pip install libusb1
 import struct
 import atexit
+import scipy.signal  # pip install scipy
+
 from PyQa40x.registers import Registers
 from PyQa40x.control import Control
 from PyQa40x.stream import Stream
@@ -10,8 +12,7 @@ from PyQa40x.fft_processor import FFTProcessor
 from PyQa40x.sig_proc import SigProc
 from PyQa40x.helpers import *
 from PyQa40x.analyzer_params import AnalyzerParams
-import scipy.signal  # pip install scipy
-
+from PyQa40x.bluetooth import BluetoothAudioDevice  
 
 class Analyzer:
     def __init__(self):
@@ -25,15 +26,16 @@ class Analyzer:
         self.control: Control | None = None
         self.stream: Stream | None = None
         self.cal_data: dict | None = None
-        
-    def init(self, sample_rate: int = 192000, max_input_level: int = 0, max_output_level: int = 18, 
+        self.bt_device: BluetoothAudioDevice | None = None
+
+    def init(self, sample_rate: int = 48000, max_input_level: int = 0, max_output_level: int = 18, 
              pre_buf: int = 2048, post_buf: int = 2048, fft_size: int = 16384, window_type: str = 'boxcar',
-             amplitude_unit: str = "dbv", distortion_unit: str = "db") -> AnalyzerParams:
+             amplitude_unit: str = "dbv", distortion_unit: str = "db", bt_device_name: str = '') -> AnalyzerParams:
         """
         Initializes the analyzer hardware with the specified parameters.
 
         Args:
-            sample_rate (int): The sample rate for the device. Valid values are 48000, 96000, 192000.
+            sample_rate (int): The sample rate for the device. Default is 48000. Valid values are 48000, 96000, 192000.
             max_input_level (int): Maximum input level in dBV. Valid values are 0, 6, 12, 18, 24, 30, 36, 42.
             max_output_level (int): Maximum output level in dBV. Valid values are 18, 8, -2, -12.
             pre_buf (int): Size of the pre-buffer.
@@ -42,6 +44,7 @@ class Analyzer:
             window_type (str): Type of window function to apply to the signal before FFT.
             amplitude_unit (str): Unit for amplitude measurements, default is "dbv".
             distortion_unit (str): Unit for distortion measurements, default is "db".
+            bt_device_name (str): Name of the Bluetooth device to use. Default is empty.
 
         Returns:
             AnalyzerParams: A class instance containing the hardware and parameter settings.
@@ -70,6 +73,12 @@ class Analyzer:
         self.control.set_output(max_output_level)
         self.control.set_samplerate(sample_rate)
 
+        # Initialize Bluetooth device if a name is provided
+        if bt_device_name:
+            self.bt_device = BluetoothAudioDevice(bt_device_name, sample_rate)
+            if self.bt_device.device_index is None:
+                raise SystemExit("Failed to connect to the specified Bluetooth device")
+
         # Register cleanup function to be called on exit
         atexit.register(self.cleanup)
 
@@ -84,6 +93,8 @@ class Analyzer:
                 self.device.releaseInterface(0)
             if self.context:
                 self.context.close()
+            if self.bt_device:
+                self.bt_device.close()
         except Exception as e:
             print(f"An error occurred during cleanup: {e}")
 
@@ -136,6 +147,12 @@ class Analyzer:
 
         self.stream.start()
 
+        # Play wave on Bluetooth if available
+        bt_thread = None
+        if self.bt_device:
+            # Play both left and right waves on Bluetooth
+            bt_thread = self.bt_device.play_wave_background(left_wave, right_wave)
+
         try:
             for i in range(total_chunks):
                 chunk = interleaved_dac_data[i * num_ints_per_chunk:(i + 1) * num_ints_per_chunk]
@@ -147,6 +164,10 @@ class Analyzer:
         # Collect ADC data. This is bytes
         interleaved_adc_data = self.stream.collect_remaining_adc_data()
         
+        # Wait for the Bluetooth thread to finish after processing
+        if bt_thread:
+            bt_thread.join()
+
         # Convert collected ADC data back to int
         interleaved_adc_data = np.frombuffer(interleaved_adc_data, dtype=np.int32)
         
@@ -168,7 +189,7 @@ class Analyzer:
         left_adc_data = left_adc_data * cal_adc_left * adc_dbfs_correction
         right_adc_data = right_adc_data * cal_adc_right * adc_dbfs_correction
 
-        # Ensure the buffer matches the expected shape
+        # Ensure the buffer matches the expected shape. Is this needed?
         expected_shape = (self.params.pre_buf + self.params.fft_size + self.params.post_buf,)
         if left_adc_data.shape[0] != expected_shape[0]:
             left_adc_data = np.resize(left_adc_data, expected_shape)
@@ -182,5 +203,11 @@ class Analyzer:
         right_wave.set_buffer(right_adc_data)
 
         return left_wave, right_wave
+    
+
+    @staticmethod
+    def list_audio_devices_by_sample_rate(target_sample_rate: int):
+        """List all available audio devices that support a specific sample rate by calling the method from BluetoothAudioDevice."""
+        BluetoothAudioDevice.list_audio_devices_by_sample_rate(target_sample_rate)
 
 

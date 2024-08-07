@@ -12,9 +12,31 @@ def remove_dc(array: np.ndarray) -> np.ndarray:
     """
     return array - np.mean(array)
 
-def dbv_to_vpk(value: np.float64) -> np.float64:
-    vpk = np.power(10, value / 20) * np.sqrt(2)
-    return vpk
+def dbv_to_vpk(dbv: float) -> float:
+    """
+    Convert dBV to peak voltage.
+
+    Parameters:
+    dbv (float): Amplitude in dBV.
+
+    Returns:
+    float: Peak voltage.
+    """
+    return 10 ** (dbv / 20) * np.sqrt(2)
+
+
+def dbfs_to_dbv(dbfs: float) -> float:
+    """
+    Convert dBFS to dBV.
+
+    Parameters:
+    dbfs (float): Amplitude in dBFS.
+
+    Returns:
+    float: Amplitude in dBV.
+    """
+    return dbfs - 2.98
+
 
 def linear_to_dBV(value: np.float64) -> np.float64:
     """

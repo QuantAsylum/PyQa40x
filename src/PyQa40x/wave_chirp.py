@@ -2,7 +2,7 @@ import numpy as np
 from PyQa40x.analyzer_params import AnalyzerParams
 from PyQa40x.math_general import normalize_spectrum
 from PyQa40x.wave import Wave
-from PyQa40x.helpers import dbv_to_vpk
+from PyQa40x.helpers import dbv_to_vpk, dbfs_to_dbv
 import PyQa40x.math_chirp as mc
 import PyQa40x.math_general as mg
 
@@ -50,6 +50,25 @@ class WaveChirp(Wave):
         self.buffer = np.concatenate((np.zeros(self.params.pre_buf), self.chirp_buf, np.zeros(self.params.post_buf)))
     
         return self
+    
+    def gen_chirp_dbfs(self, dbfs: float, chirp_start_freq: float = 20, chirp_stop_freq: float = 20000, chirp_width: float = 0.6) -> 'WaveChirp':
+        """
+        Generates a chirp signal with a specified amplitude in dBFS.
+
+        Parameters:
+        dbfs (float): Amplitude of the chirp signal in dBFS.
+        chirp_start_freq (float): Start frequency of the chirp. Default is 20 Hz.
+        chirp_stop_freq (float): End frequency of the chirp. Default is 20,000 Hz.
+        chirp_width (float): Percentage of the buffer length used for the chirp signal. Default is 0.6.
+
+        Returns:
+        'WaveChirp': The WaveChirp instance with the generated chirp signal.
+        """
+        # Convert dBFS to dBV
+        dbv = dbfs_to_dbv(dbfs)
+
+        # Use the existing gen_chirp_dbv method to generate the chirp
+        return self.gen_chirp_dbv(dbv, chirp_start_freq, chirp_stop_freq, chirp_width)
 
     def get_buffer_and_invfilter(self) -> tuple[np.ndarray, np.ndarray]:
         """
@@ -59,43 +78,8 @@ class WaveChirp(Wave):
             tuple[np.ndarray, np.ndarray]: The buffer and the inverse filter.
         """
         return self.buffer, self.inv_filter
-
-    def compute_fft_db_OLD(self, chirp: np.ndarray = None, inverse_filter: np.ndarray = None) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-        """
-        Computes the impulse response and the FFT of a DUT chirp signal, normalizes the FFT,
-        and converts it to dBV. Uses the instance's chirp_buf and inv_filter by default.
-
-        Args:
-            dut_chirp (np.ndarray, optional): The chirp signal from the device under test (DUT).
-                                                Defaults to the instance's chirp_buf.
-            inverse_filter (np.ndarray, optional): The inverse filter to be convolved with the chirp.
-                                                    Defaults to the instance's inv_filter.
-            target_sample_rate (float, optional): The sample rate used for the chirp signal.
-                                                    Defaults to the instance's sample_rate.
-
-        Returns:
-            tuple: A tuple containing:
-                - freq (np.ndarray): The frequency bins for the FFT.
-                - fft_dut_db (np.ndarray): The normalized FFT of the DUT chirp in dB.
-                - ir_dut (np.ndarray): The impulse response of the DUT chirp.
-        """
-        if chirp is None:
-            chirp = self.chirp_buf
-        if inverse_filter is None:
-            inverse_filter = self.inv_filter
-        
-        # Get the needed correction for the reference
-        _, correction_db = mg.normalize_spectrum(self.ref_freq, self.ref_fft, 1000);
-        
-        freq, fft, ir = mc.normalize_and_compute_fft(chirp, self.ref_inv_filter, self.params.sample_rate);
-        #print(f"Value @ 1k {np.interp(1000, freq, fft)} dB")
-        
-        fft = fft + correction_db
-        #print(f"Value @ 1k {np.interp(1000, freq, fft)} dB")
-        
-        return freq, fft, ir
-    
-    def compute_fft_db(self, chirp: np.ndarray = None, inverse_filter: np.ndarray = None,
+ 
+    def compute_fft_db(self, chirp: np.ndarray = None, inverse_filter: np.ndarray = None, apply_window = False,
                        window_start_time: float = 0.001, window_end_time: float = 0.005,
                        ramp_up_time: float = 0.001, ramp_down_time: float = 0.001) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
         """
@@ -132,7 +116,7 @@ class WaveChirp(Wave):
         _, correction_db = mg.normalize_spectrum(self.ref_freq, self.ref_fft, 1000)
     
         freq, fft, ir, window = mc.normalize_and_compute_fft(
-            chirp, inverse_filter, self.params.sample_rate, 
+            chirp, inverse_filter, self.params.sample_rate, apply_window,
             window_start_time, window_end_time, ramp_up_time, ramp_down_time
         )
     

@@ -3,7 +3,8 @@ import matplotlib.pyplot as plt
 
 def generate_window(buffer_size: int, window_start: int, window_end: int, ramp_up: int, ramp_down: int) -> np.ndarray:
     """
-    Generates a window function and places it in a buffer.
+    Generates a window function and places it in a buffer. This window function should be used for IR. For more common
+    windowing, such as flattop, boxcar, etc on acquired time series, use standard np
 
     Args:
         buffer_size (int): The size of the buffer.

@@ -63,48 +63,12 @@ def chirp_vp(total_buffer_length: int, fs: float, amplitude_vpk: float, f1: floa
     
     return padded_chirp, inverse_filter
 
-def normalize_and_compute_fft_OLD(chirp: np.ndarray, inverse_filter: np.ndarray, target_sample_rate: float) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-    """
-    Computes the impulse response and the FFT of a DUT chirp signal, normalizes the FFT,
-    and converts it to dB.
-
-    Args:
-        chirp (np.ndarray): The chirp signal from the device under test (DUT).
-        inverse_filter (np.ndarray): The inverse filter to be convolved with the chirp.
-        target_sample_rate (float): The sample rate used for the chirp signal.
-
-    Returns:
-        tuple: A tuple containing:
-            - freq (np.ndarray): The frequency bins for the FFT.
-            - fft_dut_dbv (np.ndarray): The normalized FFT of the DUT chirp in dB.
-            - ir_dut (np.ndarray): The impulse response of the DUT chirp.
-    """
-    
-    # Compute impulse response by convolving DUT chirp with inverse filter
-    ir = fftconvolve(chirp, inverse_filter, mode='same')
-
-    # Compute FFT of the impulse response
-    fft_dut = fft(ir)
-    fft_dut = fft_dut[:len(fft_dut) // 2]  # Take the positive frequency components
-
-    # Compute frequency bins
-    freq = np.fft.fftfreq(len(chirp), 1 / target_sample_rate)
-    freq = freq[:len(freq) // 2]
-
-    # Normalize FFT by the length of the FFT
-    fft_dut_normalized = np.abs(fft_dut) / len(fft_dut)
-
-    # Convert to dBV
-    fft_dut_db = 20 * np.log10(fft_dut_normalized)
-
-    return freq, fft_dut_db, ir
-
-def normalize_and_compute_fft(chirp: np.ndarray, inverse_filter: np.ndarray, target_sample_rate: float, 
+def normalize_and_compute_fft(chirp: np.ndarray, inverse_filter: np.ndarray, target_sample_rate: float, apply_window = False,
                               window_start_time: float = 0.005, window_end_time: float = 0.01, 
                               ramp_up_time: float = 0.0001, ramp_down_time: float = 0.001) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """
     Computes the impulse response and the FFT of a DUT chirp signal, normalizes the FFT,
-    converts it to dB, and generates a window for the impulse response.
+    converts it to dB, and generates and applies a window for the impulse response.
 
     Args:
         chirp (np.ndarray): The chirp signal from the device under test (DUT).
@@ -119,12 +83,27 @@ def normalize_and_compute_fft(chirp: np.ndarray, inverse_filter: np.ndarray, tar
         tuple: A tuple containing:
             - freq (np.ndarray): The frequency bins for the FFT.
             - fft_dut_dbv (np.ndarray): The normalized FFT of the DUT chirp in dB.
-            - ir_dut (np.ndarray): The impulse response of the DUT chirp.
+            - ir_dut (np.ndarray): The windowed impulse response of the DUT chirp
             - window (np.ndarray): The generated window function.
     """
-    
+        
     # Compute impulse response by convolving DUT chirp with inverse filter
     ir = fftconvolve(chirp, inverse_filter, mode='same')
+    
+    # Determine window parameters in samples
+    window_start = int(window_start_time * target_sample_rate)
+    window_end = int(window_end_time * target_sample_rate)
+    ramp_up = int(ramp_up_time * target_sample_rate)
+    ramp_down = int(ramp_down_time * target_sample_rate)
+    
+    # Generate window
+    peak_index = np.argmax(np.abs(ir))
+    buffer_size = len(ir)
+    window = generate_window(buffer_size, peak_index - window_start, peak_index + window_end, ramp_up, ramp_down)
+    
+    # Apply window to IR if selected
+    if (apply_window):
+        ir = ir * window
     
     # Compute FFT of the impulse response
     fft_dut = fft(ir)
@@ -139,16 +118,5 @@ def normalize_and_compute_fft(chirp: np.ndarray, inverse_filter: np.ndarray, tar
 
     # Convert to dBV
     fft_dut_db = 20 * np.log10(fft_dut_normalized)
-    
-    # Determine window parameters in samples
-    window_start = int(window_start_time * target_sample_rate)
-    window_end = int(window_end_time * target_sample_rate)
-    ramp_up = int(ramp_up_time * target_sample_rate)
-    ramp_down = int(ramp_down_time * target_sample_rate)
-    
-    # Generate window
-    peak_index = np.argmax(np.abs(ir))
-    buffer_size = len(ir)
-    window = generate_window(buffer_size, peak_index - window_start, peak_index + window_end, ramp_up, ramp_down)
     
     return freq, fft_dut_db, ir, window
