@@ -32,7 +32,12 @@ bluetooth_list_devices = False
 # Specify the name of your bluetooth device here. The chirp will be mirrored to that
 # device.
 bluetooth_device = "SineAudio DS6301+"
+bluetooth_device = "I13"
 #bluetooth_device = ""
+
+# if true, then a tight IR window will be applied. Otherwise, a looser window to take
+# room characteristics into account
+is_headphones = True
 
 # Define chirp amplitude to be used in dBV. This will be used if
 # bluetooth isn't being used OR if test_loopback is specified
@@ -40,7 +45,7 @@ chirp_amp_dbv = 0
 
 # Define chirp amplitude to used in dBFS. This will be used if
 # blueotooth is used
-chirp_amp_dbfs = -10
+chirp_amp_dbfs = -5
 
 # Mute left or right as desired
 mute_left_dac = False
@@ -63,7 +68,7 @@ db_spl_at_0dbv = mic_ref_level_dbspl - mic_sense_dbv_at_ref_level - preamp_gain
 if (test_loopback):
     bluetooth_device = ""
 
-if bluetooth_list_devices == True:
+if bluetooth_list_devices:
     Analyzer.list_audio_devices_by_sample_rate(sample_rate)
     sys.exit()
 
@@ -95,18 +100,32 @@ else:
 # Send chirp to left channel.
 wave_adc_left, wave_adc_right = analyzer.send_receive(wave_dac_left, wave_dac_right)
 
-freq, fft, ir, window = wave_dac_left.compute_fft_db(wave_adc_left.get_main_buffer(), window_start_time=0.005, window_end_time=0.25, ramp_down_time=0.1)
+if is_headphones:
+    window_start_time = 0.003   # Seconds before IR peak
+    window_end_time = 0.02       # Seconds after IR peak
+    ramp_up_time = 0.001        # attack ramp period
+    ramp_down_time = 0.005       # decay ramp period
+else:
+    window_start_time = 0.010
+    window_end_time = 0.5
+    ramp_up_time = 0.005
+    ramp_down_time = 0.02 
 
-tsp = SeriesPlotter()
+freq, fft_left, ir_left, window = wave_dac_left.compute_fft_db(wave_adc_left.get_main_buffer(), apply_window=True, window_start_time=window_start_time, window_end_time=window_end_time, ramp_up_time=ramp_up_time, ramp_down_time=ramp_down_time)
+freq, fft_right, ir_left, window = wave_dac_right.compute_fft_db(wave_adc_right.get_main_buffer(), apply_window=True, window_start_time=window_start_time, window_end_time=window_end_time, ramp_up_time=ramp_up_time, ramp_down_time=ramp_down_time)
+
+tsp = SeriesPlotter(num_columns=2)
 tsp.add_time_series(wave_dac_left.get_buffer(), "DAC Left")
 tsp.add_time_series(wave_dac_right.get_buffer(), "DAC Right")
 tsp.newrow()
 tsp.add_time_series(wave_adc_left.get_buffer(), "ADC Left")
 tsp.add_time_series(wave_adc_right.get_buffer(), "ADC Right")
 tsp.newrow()
-tsp.add_time_series(ir, "IR", signal_right = window)
-tsp.add_freq_series(freq, fft, "FR (dB)", logx=True)
-tsp.add_freq_series(freq, fft + db_spl_at_0dbv, "FR dB SPL", logx=True, units = "dBSPL", ymax=120, ymin=90)
+tsp.add_time_series(ir_left, "IR Left", signal_right = window)
+tsp.add_time_series(ir_left, "IR Right", signal_right = window)
+tsp.newrow
+tsp.add_freq_series(freq, fft_left + db_spl_at_0dbv, "FR Left dBSPL", logx=True, units="dBSPL", ymax=120, ymin=40)
+tsp.add_freq_series(freq, fft_right + db_spl_at_0dbv, "FR Right dBSPL", logx=True, units = "dBSPL", ymax=120, ymin=40)
 tsp.plot();
 
 analyzer.cleanup()

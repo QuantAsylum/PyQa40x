@@ -18,7 +18,7 @@ from PyQa40x.helpers import linear_to_dBV
 
 mic_ref_level_dbspl = 94            # Mic sense reference level
 mic_sense_dbv_at_ref_level = -28.9  # Earthworks M23R
-preamp_gain = 10                    # QA472
+preamp_gain = 0                    # QA472
 
 dbSpl_at_0dbv = mic_ref_level_dbspl - mic_sense_dbv_at_ref_level - preamp_gain
 
