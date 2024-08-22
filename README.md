@@ -46,7 +46,7 @@ as shown below. After entering, you can push the "Run this Cell" button, or just
 
 This will install the library. 
 
-Next, go to the PyQa40x directory you unzipped, and look in the ```LibTest`` subdirectory and open and copy the ```FirstPrinciples.py``` code. And then, paste that in the next cell in JupyterLab Desktop and run it. That should produce a graph similar to below:
+Next, go to the PyQa40x directory you unzipped, and look in the ```LibTest``` subdirectory and open and copy the ```FirstPrinciples.py``` code. And then, paste that in the next cell in JupyterLab Desktop and run it. That should produce a graph similar to below:
 
 ![image](https://github.com/user-attachments/assets/625c3be2-026d-4e20-a454-8b88a906b0f9)
 
