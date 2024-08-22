@@ -4,7 +4,7 @@ import sys
 import numpy as np
 import matplotlib.pyplot as plt
 
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'src')))
+sys.path.insert(0, os.path.abspath(os.path.join(sys.path[0], '..', 'src')))
 
 from PyQa40x.analyzer import Analyzer
 from PyQa40x.wave_chirp import WaveChirp

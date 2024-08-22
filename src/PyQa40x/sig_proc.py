@@ -1,6 +1,8 @@
 import numpy as np
 from scipy.signal import windows
 
+# THIS CLASS SHOULD BE REMOVED AS IT'S NOT BEING USED
+
 class SigProc:
     def __init__(self, params):
         self.params = params

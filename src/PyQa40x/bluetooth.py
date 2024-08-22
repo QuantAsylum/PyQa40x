@@ -1,4 +1,4 @@
-import pyaudio
+import pyaudio # pip install pyaudio
 import threading
 import numpy as np
 from PyQa40x.wave import Wave
