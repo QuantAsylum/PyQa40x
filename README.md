@@ -9,16 +9,53 @@ The library is very much in flux, and support might be sporadic. The PyQa40x lib
 5) ASIO. An ASIO driver for the QA403/QA402/QA401 is available [here](https://github.com/dechamps/ASIO401), allowing you to use the QA40x hardware with common audio-processing applications.
 6) PyQa40x. This library is an attempt to streamline a lot of common processing operations, while handling some of the more difficult topics such as normalization and windowing. The aim here is to facilitate an environment to digital signal processing development using absolute values instead of relative values. What this means is if you specify a 1Vrms sine way, the output of of the QA40x hardware will be 1Vrms.
 
-The rest of this document focuses on 
+The rest of this document focuses on running the PyQa40x examples under Jupyterlab Desktop.
 
-If you are looking for a simple starting point, 
+## Getting up and running
 
-To get started, you can install the library in the Jupyter Lab environment by typing the following into a Juptyer Lab cell and the running the command:
+If you are looking for a simple starting point for running Python, Jupyterlab Desktop is probably it. It delivers a nice editing environment, includes its own Python installer, and delivers beautiful plots. 
+
+### Install JupyterLab Desktop
+There are a lot of flavors of Jupyter. JupyterLab Desktop is the cross-platform desktop application for JupyterLab, and it is probably the quickest and easiest way to get started with Jupyter notebooks on your local machine.
+
+Go to the JupyterLab Desktop page on Github located [here](https://github.com/jupyterlab/jupyterlab-desktop)
+
+Scroll down to the ```Installation``` section and select the installer for your particular operating system.
+
+Once the application has installed, upon first run, you'll see an option to install Python at the base of the Jupyter home screen.
+
+Once Python has installed, go to the Github page for the [PyQa40x lib](https://github.com/QuantAsylum/PyQa40x) and locate the green ```Code``` button. Click that and download a zip of the library. Unzip that into the directory of your choice.
+
+Re-launch the JupyterLab Desktop app, and from the main screen, select "Open Folder." Create a new folder on your drive off of MyDocs, and name it ```JupyterLabAudioTest``` or similar. 
+
+![image](https://github.com/user-attachments/assets/4585466c-a2ee-40ab-a793-8671730c4139)
+
+Open a Notebook using Python 3.
+
+![image](https://github.com/user-attachments/assets/d111c02f-fd22-4737-b8fb-c79935554c32)
+
+You will be greeted with an ```Untitled.ipynb``` file. Go to the cell and enter
 
 ```
 !pip install git+https://github.com/QuantAsylum/PyQa40x.git
 ```
 
-After the installation has finished, there are examples in the LibTest directory you can run.
+as shown below. After entering, you can push the "Run this Cell" button, or just enter <kbd>SHIFT</kbd> + <kbd>ENTER</kbd>
+
+![image](https://github.com/user-attachments/assets/73b86375-311b-4458-9952-d73052c5b27a)
+
+This will install the library. 
+
+Next, go to the PyQa40x directory you unzipped, and look in the ```LibTest`` subdirectory and open and copy the ```FirstPrinciples.py``` code. And then, paste that in the next cell in JupyterLab Desktop and run it. That should produce a graph similar to below:
+
+![image](https://github.com/user-attachments/assets/625c3be2-026d-4e20-a454-8b88a906b0f9)
+
+Next, copy the contents of the file ```PyQa40x_thdn.py``` into the next cell in JupyterLab Desktop and run that. At some point, you will run into errors telling you that libraries are missing. When you encounter an error message that a library is missing, you will need to add that library. For example, if you see the error on the line
+
+```
+import usb1  # pip install libusb1
+```
+
+the comment after the import error will indicate how to install the library. For example, ```pip install libusb1```. Just remember that if you want to run that command from a cell, you need to preface it with an exclaimation point such as ```!pip install libusb1```. 
 
 
